@@ -1,0 +1,110 @@
+«IMPORT android»
+«EXTENSION m2t::util::util»
+
+#############################################################################
+#############################################################################
+## XML root node view groups. They must include XML namespaces.
+##
+
+«DEFINE content FOR android::layout::view::FrameLayout»
+	<FrameLayout
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:tools="http://schemas.android.com/tools"
+		«EXPAND arguments FOR this»
+		>
+		«EXPAND view FOREACH views»
+	</FrameLayout>
+«ENDDEFINE»
+
+«DEFINE content FOR android::layout::view::LinearLayout»
+	<LinearLayout
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:tools="http://schemas.android.com/tools"
+		android:orientation="«horizontal ? "horizontal" : "vertical"»"
+		«EXPAND arguments FOR this»
+		>
+		«EXPAND view FOREACH views»
+	</LinearLayout>
+«ENDDEFINE»
+
+«DEFINE content FOR android::layout::view::RelativeLayout»
+	<RelativeLayout
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:tools="http://schemas.android.com/tools"
+		«EXPAND arguments FOR this»
+		>
+		«EXPAND view FOREACH views»
+	</RelativeLayout>
+«ENDDEFINE»
+
+«DEFINE content FOR android::layout::view::ViewGroup»«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Why two definitions for view groups? Because they can also be the root
+## node of an XML file, and in that case we have to add XML namespaces. But
+## not here.
+##
+
+«DEFINE view FOR android::layout::view::FrameLayout»
+	<FrameLayout«EXPAND arguments FOR this»>
+		«EXPAND view FOREACH views»
+	</FrameLayout>
+«ENDDEFINE»
+
+«DEFINE view FOR android::layout::view::LinearLayout»
+	<LinearLayout android:orientation="«horizontal ? "horizontal" : "vertical"»"«EXPAND arguments FOR this»>
+		«EXPAND view FOREACH views»
+	</LinearLayout>
+«ENDDEFINE»
+
+«DEFINE view FOR android::layout::view::RelativeLayout»
+	<RelativeLayout«EXPAND arguments FOR this»>
+		«EXPAND view FOREACH views»
+	</RelativeLayout>
+«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## And now we have the single view items that cannot contain any children
+##
+
+«DEFINE view FOR android::layout::view::Button»
+	<Button«EXPAND arguments FOR this»/>
+«ENDDEFINE»
+
+«DEFINE view FOR android::layout::view::FragmentContainer»
+	<fragment class="«getPackageName()».fragments.«fragment.name»"«EXPAND arguments FOR this»/>
+«ENDDEFINE»
+
+«DEFINE view FOR android::layout::view::TextView»
+	<TextView«EXPAND arguments FOR this»/>
+«ENDDEFINE»
+
+«DEFINE view FOR android::layout::view::EditText»
+	<EditText
+		«IF inputType.length > 0»android:inputType="«inputType»"«ENDIF»
+		«EXPAND arguments FOR this»
+		/>
+«ENDDEFINE»
+
+«DEFINE view FOR android::layout::view::Checkbox»
+	<CheckBox«EXPAND arguments FOR this»/>
+«ENDDEFINE»
+
+«DEFINE view FOR android::layout::view::Spinner»
+	<Spinner«EXPAND arguments FOR this»«IF stringsArrayName != null» android:entries="@array/«stringsArrayName»"«ENDIF»/>
+«ENDDEFINE»
+
+«DEFINE view FOR android::layout::view::View»
+	«ERROR "ERROR: No model-to-text template defintion for View '" + metaType + "'"»
+«ENDDEFINE»
+
+«DEFINE arguments FOR android::layout::view::View»
+	«IF id.length > 0»android:id="@+id/«id»"«ENDIF»
+	«IF text.length > 0»android:text="«text»"«ENDIF»
+	«IF layout_width.length > 0»android:layout_width="«layout_width»"«ENDIF»
+	«IF layout_height.length > 0»android:layout_height="«layout_height»"«ENDIF»
+	«IF layout_weight > 0»android:layout_weight="«layout_weight»"«ENDIF»
+	«IF layout_gravity.length > 0»android:layout_gravity="«layout_gravity»"«ENDIF»
+«ENDDEFINE»

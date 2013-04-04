@@ -1,0 +1,345 @@
+--@atlcompiler atl2006
+module screens2android;
+create OUT: Android from IN: Screens;
+
+-- ------------------------------------------------------------------------
+-- ------------------------------------------------------------------------
+-- Screen related stuff below
+-- 
+
+abstract rule screen2activity
+{
+	from	scr:		Screens!Screen
+	to		act:		Android!Activity (
+							name	<- scr.id + 'Activity',
+							title	<- scr.title
+						)
+}
+
+rule dashboard2activity extends screen2activity
+{
+	from	scr:		Screens!Dashboard
+	to		lGroup:		Android!LinearLayout ( -- This one must be first. Otherwise lGroup.views results in the 'act' target will result in an empty set 
+							horizontal	<- false,
+							views		<- scr.screens->collect(s | thisModule.createStartActivityButton(s))->asSequence()
+						),
+			layout:		Android!Layout (
+							target	<- 'default',
+							content	<- lGroup
+						),
+			act:		Android!DashboardActivity (
+							activities			<- scr.screens->collect(a | thisModule.resolveTemp(a, 'act')),
+							isStartActivity		<- if scr.id = 'MainDashboard' then true else false endif,
+							layoutDefinitions	<- Set{layout},
+							actionButtons		<- lGroup.views
+						)
+}
+
+rule listscreen2activity extends screen2activity
+{
+	from	scr:		Screens!ListScreen
+	to		act:		Android!ListActivity (
+							layoutDefinitions	<- Sequence{ldD, ldL},
+							fragments			<- Sequence{
+													thisModule.details2android(scr.detailsScreen, false),
+													scr.detailsScreen.refScreens->collect(s | thisModule.details2android(s, true)),
+													fragList
+													},
+							menu				<- menu,
+							entity				<- scr.entity
+						),
+			ldD:		Android!Layout (
+							target	<- 'default',
+							content	<- cDgroup
+						),
+			ldL:		Android!Layout (
+							target	<- 'large',
+							content	<- cLgroup
+						),
+			fragList:	Android!ListFragment (
+							name				<- scr.entity.name + 'ListFragment',
+							contextMenuItems	<- Set{
+													if scr.deletable then
+														thisModule.listFragmentAddDeleteSupport(act)
+													else
+														OclUndefined
+													endif,
+													--,
+													--if scr.showItemDetails = 'context' then
+													thisModule.listFragmentAddDetailsSupportViaContext(act)
+													--else
+													--	OclUndefined
+													--endif
+													}
+						),
+			
+			--
+			-- Menu to open details fragment to create new entity
+			--
+			
+			menu:		Android!Menu (
+							name	<- act.name + 'Menu',
+							items	<- Sequence{itmCreate}
+						),
+			itmCreate:	Android!MenuItemOpenCreateEntityFragment (
+							id			<- act.name + 'Menu_Create_' + scr.entity.name,
+							title		<- 'Create ' + scr.entity.name,
+							fragment	<- act.fragments->first(),
+							entity		<- scr.entity
+						),
+			
+			--
+			-- Contents for default layout
+			--
+			
+			cDgroup:	Android!FrameLayout (
+							views			<- Sequence{cDfragc}
+						),
+			cDfragc:	Android!FragmentContainer (
+							id				<- act.name + '_fragment_left', -- Same name as the first fragment in the large layout. Makes life easy. Trust me.
+							fragment		<- fragList
+						),
+			
+			--
+			-- Contents for large layout
+			--
+			
+			cLgroup:	Android!LinearLayout (
+							horizontal		<- true,
+							layout_width	<- 'match_parent',
+							layout_height	<- 'match_parent',
+							views			<- Sequence{cLrl1, cLrl2, cLrl3}
+						),
+			
+			cLrl1:		Android!RelativeLayout ( layout_weight <- 0.33, views <- Sequence{cLfrag1c} ),
+			cLrl2:		Android!RelativeLayout ( layout_weight <- 0.34, views <- Sequence{cLfrag2c} ),
+			cLrl3:		Android!RelativeLayout ( layout_weight <- 0.33, views <- Sequence{cLfrag3c} ),
+			
+			cLfrag1c:	Android!FragmentContainer ( id <- act.name + '_fragment_left',   fragment <- fragList, next <- cLfrag2c ),
+			cLfrag2c:	Android!FragmentContainer ( id <- act.name + '_fragment_center', fragment <- fragList, next <- cLfrag3c ),
+			cLfrag3c:	Android!FragmentContainer ( id <- act.name + '_fragment_right',  fragment <- fragList )
+}
+
+-- ------------------------------------------------------------------------
+-- ------------------------------------------------------------------------
+-- Details screen
+-- 
+
+lazy rule details2android {
+	from	details:		Screens!DetailsScreen,
+			isRefScreen:	Boolean
+	to		fragment:		Android!DialogFragment (
+								name				<- details.entity.name + 'DetailsFragment',
+								layoutDefinitions	<- Set{layout},
+								behaviors			<- Set{behaveDetails}
+							),
+			layout:			Android!Layout (
+								target	<- 'default',
+								content <- content
+							),
+			content:		Android!LinearLayout (
+								horizontal	<- false,
+								views		<- Sequence{details.entity.fields->collect(f | thisModule.prop2row(f))->asSequence(), rowButtons}
+							),
+			behaveDetails:	Android!DetailsFragmentBehavior (
+								entity			<- details.entity,
+								isRefFragment	<- isRefScreen
+							),
+			
+			--
+			-- Button behavior down here
+			--
+			
+			rowButtons:		Android!LinearLayout (
+								horizontal	<- true,
+								views		<- Sequence{btnSave, btnCancel}
+							),
+			btnSave:		Android!Button (							-- These must be added because DetailsFragmentBehavior assumes that they're there
+								id				<- 'ButtonSave',
+								text			<- 'Save',
+								layout_height	<- 'wrap_content',
+								layout_weight	<- 1
+							),
+			btnCancel:		Android!Button (
+								id				<- 'ButtonCancel',
+								text			<- 'Cancel',
+								layout_height	<- 'wrap_content',
+								layout_weight	<- 1
+							)
+			
+}
+
+-- ------------------------------------------------------------------------
+-- ------------------------------------------------------------------------
+-- Screen lazy helper rules
+-- 
+
+lazy rule createStartActivityButton
+{
+	from	scr:	Screens!Screen
+	to		but:	Android!StartActivityButton (
+						id				<- 'button_startActivity_' + scr.id,
+						activity		<- thisModule.resolveTemp(scr, 'act'), -- Finds the Activity that was generated based on this screen
+						layout_height	<- 'wrap_content',
+						text			<- scr.title
+					)
+}
+
+lazy rule listFragmentAddDeleteSupport
+{
+	from	act:				Android!Activity
+	to		ctxMenuDelete:		Android!ContextMenuItemDelete (
+								),
+			actBehaviorDelete:	Android!OnFragmentDeletesEntityBehavior (
+									activity <- act
+								)
+}
+
+lazy rule listFragmentAddDetailsSupportViaContext
+{
+	from	act:				Android!Activity
+	to		ctxMenuDelete:		Android!ContextMenuItemDetails (
+									detailsFragment <- act.fragments->select(f | f.oclIsKindOf(Android!DialogFragment))->first() 
+								)
+}
+
+lazy rule prop2row {
+	from	prop:		Screens!EntityProperty
+	to		lLayout:	Android!LinearLayout (
+							horizontal		<- true,
+							layout_height	<- 'wrap_content',
+							views			<- Sequence{rLayoutL, rLayoutR}
+						),
+			rLayoutL:	Android!RelativeLayout (
+							layout_weight	<- 1,
+							layout_height	<- 'wrap_content',
+							layout_gravity	<- 'center_vertical',
+							views			<- Set{label}
+						),
+			rLayoutR:	Android!RelativeLayout (
+							layout_weight	<- 1,
+							layout_height	<- 'wrap_content',
+							views			<- Set{thisModule.prop2view(prop)}
+						),
+			label:		Android!TextView (
+							text			<- prop.name,
+							layout_height	<- 'wrap_content'
+						)
+}
+
+lazy abstract rule prop2view {
+	from	prop:	Screens!EntityProperty
+	to		view:	Android!View (
+						id				<- prop.entity.name + prop.binding,
+						label			<- prop.name,
+						layout_height	<- 'wrap_content'
+					)
+}
+lazy rule text2view extends prop2view {
+	from	prop:	Screens!TextProperty
+	to		view:	Android!EditText
+}
+lazy rule bool2view extends prop2view {
+	from	prop:	Screens!BoolProperty
+	to		view:	Android!Checkbox
+}
+lazy rule ref2view extends prop2view {
+	from	prop:	Screens!RefProperty
+	to		view:	Android!Spinner (
+						behavior <- behave
+					),
+			behave:	Android!SpinnerEntityRefBehavior (
+						isMultiref		<- prop.isMultiref,
+						refEntityName	<- prop.refEntityName
+					)
+}
+lazy rule enum2view extends prop2view {
+	from	prop:	Screens!EnumProperty
+	to		view:	Android!Spinner (
+						stringsArrayName <- prop.entity.name + prop.binding + 'Options'
+					),
+			array:	Android!StringArray (
+						name	<- view.stringsArrayName,
+						items	<- prop.options
+					)
+}
+lazy rule int2view extends prop2view {
+	from	prop:	Screens!IntProperty
+	to		view:	Android!EditText (
+						inputType <- 'number'
+					)
+}
+lazy rule float2view extends prop2view {
+	from	prop:	Screens!FloatProperty
+	to		view:	Android!EditText (
+						inputType <- 'numberDecimal'
+					)
+}
+
+-- ------------------------------------------------------------------------
+-- ------------------------------------------------------------------------
+-- Entity related stuff below
+-- 
+
+rule entity2entity {
+	from	s:		Screens!Entity
+	to		entity:	Android!Entity (
+						name			<- s.name,
+						fields			<- s.fields->collect(f | thisModule.resolveTemp(f, 'field')),
+						isHierarchical	<- s.isHierarchical
+					)
+}
+
+abstract rule prop2field {
+	from	prop:	Screens!EntityProperty
+	to		field:	Android!EntityField (
+						name			<- prop.binding,
+						friendlyName	<- prop.name,
+						isIdentifier	<- if prop.isIdentifier = true then true else false endif	-- Force true/false and not OclUndefined
+					)
+}
+rule text2field extends prop2field {
+	from	prop:	Screens!TextProperty
+	to		field:	Android!TextField
+}
+rule bool2field extends prop2field {
+	from	prop:	Screens!BoolProperty
+	to		field:	Android!BoolField
+}
+rule enum2field extends prop2field {
+	from	prop:	Screens!EnumProperty
+	to		field:	Android!EnumField
+}
+rule ref2field extends prop2field {
+	from	prop:	Screens!RefProperty
+	to		field:	Android!RefField (
+						isMultiref		<- prop.isMultiref,
+						refEntityName	<- prop.refEntityName,
+						creatable		<- prop.creatable
+					)
+}
+rule int2field extends prop2field {
+	from	prop:	Screens!IntProperty
+	to		field:	Android!IntField
+}
+rule float2field extends prop2field {
+	from	prop:	Screens!FloatProperty
+	to		field:	Android!FloatField
+}
+
+-- ------------------------------------------------------------------------
+-- ------------------------------------------------------------------------
+-- Finally, create the application and collect instances
+-- 
+
+rule app2app 
+{
+	from	sigmaxApp:	Screens!Application
+	to		androidApp:	Android!Application (
+							name			<- sigmaxApp.name,
+							identifier		<- sigmaxApp.identifier,
+							activities		<- Android!Activity.allInstances(),
+							entities		<- Android!Entity.allInstances(),
+							stringArrays	<- Android!StringArray.allInstances()
+						)
+}

@@ -1,0 +1,268 @@
+«IMPORT android»
+«EXTENSION m2t::util::util»
+
+«DEFINE entity FOR android::entity::Entity»
+	«FILE "src/" + getPackageDir() + "/storage/Base" + name + "Storage.java"»
+		package «getPackageName()».storage;
+		
+		import java.util.Collections;
+		import java.util.List;
+		import java.util.Vector;
+		
+		«classHeader('Base' + name + 'Storage')»
+		abstract class Base«name»Storage {
+			/**
+			 * The '«name»' entity
+			 * @generated
+			 */
+			public static class «name» implements Comparable<«name»> {
+				private static int NEXT_ID = 0;
+				private boolean isNew = false;
+				
+				private int id;
+				«EXPAND fieldMember FOREACH fields»
+				«IF isHierarchical»private List<«name»> children;«ENDIF»
+				
+				public «name»()	{
+					this.isNew = true;
+					this.id = NEXT_ID++;
+					«IF isHierarchical»this.children = new Vector<«name»>();«ENDIF»
+					«FOREACH fields.select(f | f.metaType == android::entity::RefField) AS field»«LET (android::entity::RefField)field AS rf»«IF rf.isMultiref»
+					this.«rf.name.toFirstLower()» = new Vector<«rf.refEntityName»Storage.«rf.refEntityName»>();
+					«ENDIF»«ENDLET»«ENDFOREACH»
+				}
+				
+				public «name»(«EXPAND buildEntityMethodArgs FOR this») {
+					this.id = NEXT_ID++;
+					«FOREACH fields AS field»«IF field.metaType == android::entity::RefField && ((android::entity::RefField)field).isMultiref»
+							this.«field.name.toFirstLower()» = new Vector<«((android::entity::RefField)field).refEntityName»Storage.«((android::entity::RefField)field).refEntityName»>();
+						«ELSE»
+							this.«field.name.toFirstLower()» = «field.name.toFirstLower()»;
+					«ENDIF»«ENDFOREACH»
+					«IF isHierarchical»this.children = new Vector<«name»>();«ENDIF»
+				}
+				
+				public boolean isNew() {
+					return isNew;
+				}
+				public void setIsNew(boolean b) {
+					isNew = b;
+				}
+				
+				public int getId() {
+					return id;
+				}
+				
+				«EXPAND methods FOREACH fields»
+				
+				«IF isHierarchical»
+					public «name» addChild(«name» child) {
+						child.setIsNew(false);
+						children.add(child);
+						return this;
+					}
+					public Vector<«name»> getChildren() {
+						Collections.sort(children);
+						return (Vector<«name»>)children;
+					}
+					public void removeChild(«name» child) {
+						if (children.contains(child)) {
+							children.remove(child);
+						}
+						else {
+							for («name» o : children) {
+								o.removeChild(child);
+							}
+						}
+					}
+				«ENDIF»
+				
+				«LET fields.select(f | f.isIdentifier) AS idFields»
+					«IF idFields.size > 0»
+						/**
+						 * Override the object's toString() method to produce a human-understandable string representation
+						 * @return string representation of the object
+						 */
+						public String toString() {
+							if (isNew)
+								return "New «name»";
+								
+							String s = new String(«FOREACH idFields AS idf ITERATOR iter»«idf.name.toFirstLower()»«IF idf.metaType == android::entity::RefField».toString()«ENDIF»«IF !iter.lastIteration» + ", " + «ENDIF»«ENDFOREACH»).trim();							
+							return s;
+						}
+					«ENDIF»
+				«ENDLET»
+				
+				/**
+				 * Compares two items based on their toString representation
+				 */
+				public int compareTo(«name» l) {
+					return toString().compareToIgnoreCase(l.toString());
+				}
+			}
+
+		    // Internal storage with all objects
+		    private Vector<«name»> storage;
+		
+		    // The only instance of this class
+		    private static «name»Storage instance;
+
+		    /**
+		     * @return the only available instance of this class
+		     */
+		    public static «name»Storage getInstance() {
+		        if (instance == null)
+		            instance = new «name»Storage();
+		        return instance;
+		    }
+		
+		    /**
+		     * Constructor, initialize storage
+		     */
+		    protected Base«name»Storage() {
+		        storage = new Vector<«name»>();
+		    }
+		
+		    /**
+		     * @return a copy of the internal storage
+		     */
+		    public Vector<«name»> getStorage() {
+		        Collections.sort(storage);
+		        return (Vector<«name»>)storage;
+		    }
+		
+		    /**
+		     * Add a new «name» to the storage
+		     * @param object
+		     */
+		    public void add(«name» object) {
+		    	object.setIsNew(false);
+		        storage.add(object);
+		    }
+		
+		    /**
+		     * Remove the provided «name» from storage
+		     * @param object
+		     */
+		    public void remove(«name» object) {
+		    	if (storage.contains(object)) {
+		        	storage.remove(object);
+		        }
+		        «IF isHierarchical»else {
+		        	for («name» o : storage) {
+		        		o.removeChild(object);
+		        	}
+		        }
+		        «ENDIF»
+		    }
+	
+			/**
+			 * Find a «name» by its ID. «IF isHierarchical»Performs a recursive search amongst children.«ENDIF»
+			 * @return «name» with the corresponding ID, or null if not found
+			 */
+			public «name» get«name»ById(int id) {
+				Vector<«name»> search = new Vector<«name»>(getStorage());
+				for (int i = 0; i < search.size(); i++) {
+					«name» o = search.get(i);
+					if (o.getId() == id)
+						return o;
+					
+					«IF isHierarchical»search.addAll(o.getChildren());«ENDIF»
+				}
+				return null;
+			}
+		}
+	«ENDFILE»
+	«FILE "src/" + getPackageDir() + "/storage/" + name + "Storage.java"»
+		package «getPackageName()».storage;
+		
+		«classHeader(name)»
+		public final class «name»Storage extends Base«name»Storage {
+			public «name»Storage() {
+				super();
+			}
+		}
+	«ENDFILE»
+«ENDDEFINE»
+
+«DEFINE fieldMember FOR android::entity::TextField»private String «name.toFirstLower()»;«ENDDEFINE»
+«DEFINE fieldMember FOR android::entity::BoolField»private boolean «name.toFirstLower()»;«ENDDEFINE»
+«DEFINE fieldMember FOR android::entity::IntField»private int «name.toFirstLower()»;«ENDDEFINE»
+«DEFINE fieldMember FOR android::entity::FloatField»private double «name.toFirstLower()»;«ENDDEFINE»
+«DEFINE fieldMember FOR android::entity::EnumField»private String «name.toFirstLower()»;«ENDDEFINE»
+«DEFINE fieldMember FOR android::entity::RefField»private «IF isMultiref»List<«refEntityName»Storage.«refEntityName»>«ELSE»«refEntityName»Storage.«refEntityName»«ENDIF» «name.toFirstLower()»;«ENDDEFINE»
+«DEFINE fieldMember FOR android::entity::EntityField»«ERROR "No fieldMember template definition for field '" + metaType + "'"»«ENDDEFINE»
+
+«DEFINE methods FOR android::entity::TextField»
+	public String get«name»() {
+		 return «name.toFirstLower()»;
+	}
+	public void set«name»(String v) {
+		«name.toFirstLower()» = v;
+	}
+«ENDDEFINE»
+«DEFINE methods FOR android::entity::BoolField»
+	public boolean get«name»() {
+		 return «name.toFirstLower()»;
+	}
+	public void set«name»(boolean v) {
+		«name.toFirstLower()» = v;
+	}
+«ENDDEFINE»
+«DEFINE methods FOR android::entity::IntField»
+	public int get«name»() {
+		 return «name.toFirstLower()»;
+	}
+	public void set«name»(int v) {
+		«name.toFirstLower()» = v;
+	}
+«ENDDEFINE»
+«DEFINE methods FOR android::entity::FloatField»
+	public double get«name»() {
+		 return «name.toFirstLower()»;
+	}
+	public void set«name»(double v) {
+		«name.toFirstLower()» = v;
+	}
+«ENDDEFINE»
+«DEFINE methods FOR android::entity::EnumField»
+	public String get«name»() {
+		 return «name.toFirstLower()»;
+	}
+	public void set«name»(String v) {
+		«name.toFirstLower()» = v;
+	}
+«ENDDEFINE»
+«DEFINE methods FOR android::entity::RefField»
+	«IF isMultiref»
+		public List<«refEntityName»Storage.«refEntityName»> get«refEntityName»() {
+			return «name.toFirstLower()»;
+		}
+		public void add«refEntityName»(«refEntityName»Storage.«refEntityName» v) {
+			«name.toFirstLower()».add(v);
+		}
+		public void remove«refEntityName»(«refEntityName»Storage.«refEntityName» v) {
+			if («name.toFirstLower()».contains(v)) {
+				«name.toFirstLower()».remove(v);
+			}
+		}
+	«ELSE»
+		public «refEntityName»Storage.«refEntityName» get«refEntityName»() {
+		 	return «name.toFirstLower()»;
+		}
+		public void set«refEntityName»(«refEntityName»Storage.«refEntityName» v) {
+			«name.toFirstLower()» = v;
+		}
+	«ENDIF»
+«ENDDEFINE»
+«DEFINE methods FOR android::entity::EntityField»«ERROR "No methods template definition for field '" + metaType + "'"»«ENDDEFINE»
+
+«DEFINE buildEntityMethodArgs FOR android::entity::Entity»«FOREACH fields AS field ITERATOR i»«IF field.metaType == android::entity::RefField && ((android::entity::RefField)field).isMultiref»List<«EXPAND primitive FOR field»> «field.name.toFirstLower()»«ELSE»«EXPAND primitive FOR field» «field.name.toFirstLower()»«ENDIF»«IF !i.lastIteration»,«ENDIF»«ENDFOREACH»«ENDDEFINE»
+
+«DEFINE primitive FOR android::entity::TextField»String«ENDDEFINE»
+«DEFINE primitive FOR android::entity::BoolField»boolean«ENDDEFINE»
+«DEFINE primitive FOR android::entity::IntField»int«ENDDEFINE»
+«DEFINE primitive FOR android::entity::FloatField»double«ENDDEFINE»
+«DEFINE primitive FOR android::entity::EnumField»String«ENDDEFINE»
+«DEFINE primitive FOR android::entity::RefField»«refEntityName»Storage.«refEntityName»«ENDDEFINE»
+«DEFINE primitive FOR android::entity::EntityField»«ERROR "No primitive template definition for field '" + metaType + "'"»«ENDDEFINE»

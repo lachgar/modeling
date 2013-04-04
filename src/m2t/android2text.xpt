@@ -1,0 +1,611 @@
+«IMPORT android»
+«IMPORT m2t»
+«EXTENSION m2t::util::util»
+
+«DEFINE main FOR Application»
+	
+	«setAppIdentifier(identifier)»
+	«setPackageName(identifier)»
+	
+	«FILE "AndroidManifest.xml"»
+		<?xml version="1.0" encoding="utf-8"?>
+		<manifest
+			xmlns:android="http://schemas.android.com/apk/res/android"
+			package="«getPackageName()»"
+			android:versionCode="1"
+			android:versionName="1.0"
+			>
+		
+			<uses-sdk
+				android:minSdkVersion="15"
+				android:targetSdkVersion="15"
+				/>
+		
+			<application
+				android:allowBackup="true"
+				android:icon="@drawable/ic_launcher"
+				android:label="«name»"
+				>
+				
+			«FOREACH activities AS activity»
+				<activity
+					android:name=".activities.«activity.name»"
+					android:label="«activity.title»"
+					android:screenOrientation="nosensor"
+					>
+					«IF activity.isStartActivity»
+						<intent-filter>
+					        <action android:name="android.intent.action.MAIN" />
+					        <category android:name="android.intent.category.LAUNCHER" />
+						</intent-filter>
+					«ENDIF»
+				</activity>
+			«ENDFOREACH»
+		        
+			</application>
+		
+		</manifest>
+	«ENDFILE»
+	
+	«IF stringArrays.size > 0»
+		«FILE "res/values/stringArrays.xml"»
+			<?xml version="1.0" encoding="utf-8"?>
+			<resources>
+				«FOREACH stringArrays AS stringArray»
+					<string-array name="«stringArray.name»">
+						«FOREACH stringArray.items AS item»
+							<item>«item»</item>
+						«ENDFOREACH»
+					</string-array>
+				«ENDFOREACH»
+			</resources>
+		«ENDFILE»
+	«ENDIF»
+	
+	«EXPAND activity FOREACH activities»
+	«EXPAND entities::entity FOREACH entities»
+	
+«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Activity related stuff!
+##
+
+«DEFINE activity FOR activity::Activity»
+
+	# We put everything in the base activity, so that it can be overriden/extended by the user if desired.
+	«FILE "src/" + getPackageDir() + "/activities/Base" + name + ".java"»
+		package «getPackageName()».activities;
+		
+		import android.app.Activity;
+		import android.content.Intent;
+		import android.os.Bundle;
+		import android.content.res.Configuration;
+		import android.view.*;
+		import android.widget.*;
+		
+		import «getPackageName()».R;
+		import «getPackageName()».fragments.*;
+		«EXPAND activityImports FOR this»
+		
+		«classHeader('Base' + name + 'Activity')»
+		abstract class Base«name» extends Activity«EXPAND activityImplements FOR this»
+		{		
+			// Whether this activity uses multipane or not
+			protected boolean isLarge = false;
+			
+			«EXPAND activityMembers FOR this»
+			
+			protected Base«name»() {
+			}
+			
+			@Override
+			public void onCreate(Bundle savedInstance) {
+				super.onCreate(savedInstance);
+				setContentView(R.layout.«name.toLowerCase()»);
+			
+				// Determine if we're in large layout
+				isLarge = ((getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK) >= Configuration.SCREENLAYOUT_SIZE_LARGE);
+				
+				// Attach button on-click handlers
+				attachOnClickHandlers();
+				
+				«EXPAND activityOnCreateBehavior FOR this»
+			}
+			
+			«LET fragments.selectFirst(f | f.metaType == android::activity::fragment::ListFragment) AS fragment»
+			«IF fragment != null»
+			/**
+			 * We have a fragment. This is a helper function to easily get a certain fragment container
+			 * from the underlying layout.
+			 * @return «fragment.name» with the corresponding id or null if not found
+			 */
+			protected «fragment.name» get«fragment.name»(int id) {
+				return ((«fragment.name»)getFragmentManager().findFragmentById(id));
+			}
+			«ENDIF»«ENDLET»
+			 
+			/**
+			 * This method is called by the onCreate() method if desired and attaches the onclick handers for buttons
+			 * and such, but can be overriden. Don't forget to invoke this method if you override onCreate().
+			 */ 
+			protected void attachOnClickHandlers() { «EXPAND actionButton FOREACH actionButtons» }
+			
+			«EXPAND menu::methods FOR this»
+			«EXPAND activityMethods FOR this»
+			«EXPAND activityBehavior FOREACH behaviors»
+		}
+	«ENDFILE»
+	
+	# This activity can be modified by the user. Should have some check that it is not overwritten tho ....
+	«FILE "src/" + getPackageDir() + "/activities/" + name + ".java"»
+		package «getPackageName()».activities;
+		
+		«classHeader(name + 'Activity')»
+		public class «name» extends Base«name» {
+			public «name»() {
+				super();
+			}
+		}
+	«ENDFILE»
+	
+	# Create activity layout files. We can have more than one to support multiple devices.
+	«FOREACH layoutDefinitions AS layout»
+		«FILE "res/layout" + (layout.target == 'default' ? '' : '-' + layout.target) + "/" + name.toLowerCase() + ".xml"»
+			<?xml version="1.0" encoding="utf-8"?>
+			«EXPAND layout::content FOR layout.content»
+		«ENDFILE»
+	«ENDFOREACH»
+	
+	# If we have a fragment: expand!
+	«EXPAND fragment FOREACH fragments»
+	«EXPAND menu::menu FOR menu»
+	
+«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Dynamic imports for activities
+##
+«DEFINE activityImports FOR android::activity::CRUDActivity»import «getPackageName()».storage.*;«ENDDEFINE»
+«DEFINE activityImports FOR android::activity::Activity»«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Dynamic implementing interfaces for activities
+##
+«DEFINE activityImplements FOR android::activity::Activity»
+«FOREACH fragments AS fragment»
+	«IF fragment.metaType == android::activity::fragment::ListFragment»
+		implements «fragment.name».«fragment.name»Listener
+	«ENDIF»
+«ENDFOREACH»
+«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Member behavior for types of activities
+##
+
+«DEFINE activityMembers FOR android::activity::ListActivity»
+«IF entity.isHierarchical»private «entity.name»Storage.«entity.name» currentEntity = null;«ENDIF»
+«ENDDEFINE»
+«DEFINE activityMembers FOR android::activity::Activity»«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Method behavior for types of activities
+##
+
+«DEFINE activityOnCreateBehavior FOR android::activity::ListActivity»
+«LET fragments.selectFirst(f | f.metaType == android::activity::fragment::ListFragment) AS fragment»
+	// If this activity is started with extras, it means we are in single pane mode. Because, in multi pane mode, the
+	// same activity is used to update information. No extra's means this is the start activity.
+	Bundle extras = getIntent().getExtras();
+	if (extras == null)
+	{
+		get«fragment.name»(R.id.«name»_fragment_left).populate(new java.util.Vector<«entity.name»Storage.«entity.name»>());
+		get«fragment.name»(R.id.«name»_fragment_left).populate(«entity.name»Storage.getInstance().getStorage());
+	}
+	«IF entity.isHierarchical»
+	// Not null, and the entity is hierarchical. So load children.
+	if (extras != null)
+	{
+		// Get the fragment and populate.
+		«fragment.name» frag = («fragment.name»)getFragmentManager().findFragmentById(R.id.«name»_fragment_left);
+		currentEntity = «entity.name»Storage.getInstance().get«entity.name»ById(extras.getInt("objectId"));
+		frag.populate(currentEntity.getChildren());
+	}
+	«ENDIF»
+«ENDLET»
+«ENDDEFINE»
+«DEFINE activityOnCreateBehavior FOR android::activity::Activity»«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Activity method implementations
+##
+
+«DEFINE clearNextContainer FOR android::layout::view::FragmentContainer»
+«IF next != null»
+	get«fragment.name»(R.id.«next.id»).populate(new java.util.Vector<«EXPAND entityClass FOR (android::activity::fragment::ListFragment)fragment»>());
+	«EXPAND clearNextContainer FOR next»
+«ENDIF»
+«ENDDEFINE»
+«DEFINE activityMethods FOR android::activity::ListActivity»	
+	«LET fragments.selectFirst(f | f.metaType == android::activity::fragment::ListFragment) AS fragment»
+	«IF fragment != null»	
+		/**
+		 * Interface implementation. Invoked when an item in the fragment is selected.
+		 * @param sender The sending fragment object
+		 * @param o The «entity.name» object that was selected
+		 */
+		public void onItemSelected(«fragment.name» sender, final «entity.name»Storage.«entity.name» o) {
+			«IF entity.isHierarchical»
+				«IF layoutDefinitions.size > 1»
+					// Different behavior! Use partial fragments.
+					if (isLarge) {
+						«FOREACH fragment.containers.withoutFirst() AS container»
+						if (sender.getId() == R.id.«container.id») {
+							«IF container.next == null»
+							«ELSE»
+								get«fragment.name»(R.id.«container.next.id»).populate(o.getChildren());
+								«EXPAND clearNextContainer FOR container.next»
+							«ENDIF»
+						}
+						«ENDFOREACH»
+					}
+					// Single pane, start new activity
+					else {
+						// Create intent and start
+						Intent intent = new Intent(this, «name».class);
+						intent.putExtra("objectId", o.getId());
+						startActivity(intent);
+					}
+				«ELSE»
+					// Create intent and start
+					Intent intent = new Intent(this, «name».class);
+					intent.putExtra("objectId", o.getId());
+					startActivity(intent);
+				«ENDIF»
+			«ELSE»
+				// Open fragment to show details
+				new «getPackageName()».fragments.«entity.name»DetailsFragment()
+					.setEntity(o)
+					.show(getFragmentManager(), "tag_«entity.name»DetailsFragment");
+			«ENDIF»
+		}
+		
+		/**
+		 * Refreshes the items listed.
+		 */
+		public void refresh() {
+			«IF entity.isHierarchical»
+				get«fragment.name»(R.id.«name»_fragment_left)
+					.populate(currentEntity == null ? «entity.name»Storage.getInstance().getStorage() : currentEntity.getChildren());
+			«ELSE»
+				get«fragment.name»(R.id.«name»_fragment_left).populate(«entity.name»Storage.getInstance().getStorage());
+			«ENDIF»
+		}
+	«ENDIF»
+	«ENDLET»
+«ENDDEFINE»
+
+«DEFINE activityMethods FOR android::activity::Activity»«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Button button button
+##
+
+«DEFINE actionButton FOR android::layout::view::StartActivityButton»
+final Button «id» = (Button)findViewById(R.id.«id»);
+final Intent «id»_intent = new Intent(this, «getPackageName()».activities.«activity.name».class);
+«id».setOnClickListener(new View.OnClickListener() {
+	@Override
+	public void onClick(View v) {
+		startActivity(«id»_intent);
+	}
+});
+«ENDDEFINE»
+«DEFINE actionButton FOR android::layout::view::Button»«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Attach activity behaviors to an activity
+##
+
+«DEFINE activityBehavior FOR android::activity::behavior::OnFragmentDeletesEntityBehavior»
+	«LET ((android::activity::CRUDActivity)activity).entity.name AS entityName»
+	«LET activity.fragments.selectFirst(f | f.metaType == android::activity::fragment::ListFragment) AS fragment»
+		/**
+		 * Dyanmically generated behavior..
+		 * @param sender The sending fragment
+		 * @param o The object that will be deleted
+		 */
+		public void onEntityDeleted(«fragment.name» sender, «entityName»Storage.«entityName» o) {
+			if (isLarge) {
+				«FOREACH fragment.containers.withoutFirst() AS container»
+				if (sender.getId() == R.id.«container.id») {
+					«IF container.next == null»
+					«ELSE»
+						«EXPAND clearNextContainer FOR container»
+					«ENDIF»
+				}
+				«ENDFOREACH»
+			}
+		}
+	«ENDLET»
+	«ENDLET»
+«ENDDEFINE»
+«DEFINE activityBehavior FOR android::activity::behavior::ActivityBehavior»
+	«ERROR "Undefined activity behavior. Could not expand code for " + metaType»
+«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Fragmentzzzz
+##
+
+«DEFINE entityClass FOR activity::fragment::Fragment»«((android::activity::ListActivity)eContainer).entity.name»Storage.«((android::activity::ListActivity)eContainer).entity.name»«ENDDEFINE»
+«DEFINE fragment FOR activity::fragment::DialogFragment»
+	«FOREACH layoutDefinitions AS layout»
+		«FILE "res/layout" + (layout.target == 'default' ? '' : '-' + layout.target) + "/fragment_" + name.toLowerCase() + ".xml"»
+			<?xml version="1.0" encoding="utf-8"?>
+			«EXPAND layout::content FOR layout.content»
+		«ENDFILE»
+	«ENDFOREACH»
+	«FILE "src/" + getPackageDir() + "/fragments/" + name + ".java"»
+		package «getPackageName()».fragments;
+		
+		import «getPackageName()».R;
+		import «getPackageName()».storage.*;
+		import android.app.Activity;
+		import android.app.DialogFragment;
+		import android.os.Bundle;
+		import android.view.*;
+		import android.widget.*;
+		
+		«classHeader(name)»
+		public class «name» extends DialogFragment«IF behaviors.size > 0» implements nl.smp.util.Refreshable«ENDIF»
+		{
+			«EXPAND fragmentBehavior::memberVariables FOREACH behaviors»
+			
+			/**
+			 * Empty constructor required for DialogFragment.
+			 */
+			public «name»() {
+			}
+	
+			@Override
+			public void onAttach(Activity activity) {
+				super.onAttach(activity);
+			}
+			
+			@Override
+			public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstance) {
+				View view = inflater.inflate(R.layout.fragment_«name.toLowerCase()», container);
+				
+				getDialog().setCancelable(true);
+				getDialog().setCanceledOnTouchOutside(false);
+				
+				«EXPAND fragmentBehavior::onCreateViewHooks FOREACH behaviors»
+				
+				return view;
+			}
+			
+			@Override
+			public void onResume() {
+				super.onResume();
+				«EXPAND fragmentBehavior::onResumeHooks FOREACH behaviors»
+			}
+			
+			////////////////////////////////////////////////////////////////////////
+			// Below: fragment behavior implementatinos 
+			
+			«EXPAND fragmentBehavior::methods FOREACH behaviors»
+			«EXPAND fragmentBehavior::specifics FOREACH behaviors»
+		}
+	«ENDFILE»
+«ENDDEFINE»
+«DEFINE fragment FOR activity::fragment::ListFragment»
+	«FILE "src/" + getPackageDir() + "/fragments/" + name + ".java"»
+		package «getPackageName()».fragments;
+		
+		import android.app.Activity;
+		import android.app.ListFragment;
+		import android.os.Bundle;
+		import android.view.View;
+		import android.widget.ArrayAdapter;
+		import android.widget.ListView;
+		
+		«IF contextMenuItems.size > 0»
+			// Context menu requirements
+			import android.app.AlertDialog;
+			import android.content.DialogInterface;
+			import android.view.ContextMenu;
+			import android.view.Menu;
+			import android.view.MenuItem;
+			import android.widget.AdapterView;
+		«ENDIF»
+		
+		// Java
+		import java.util.ArrayList;
+		import java.util.Vector;
+		
+		import «getPackageName()».R;
+		import «getPackageName()».storage.*;
+		
+		«classHeader(name)»
+		public class «name» extends ListFragment {
+			public interface «name»Listener {
+				public void onItemSelected(«name» sender, «EXPAND entityClass FOR this» o);
+				
+				«IF contextMenuItems.select(i | i.metaType == android::layout::view::menu::ContextMenuItemDelete).size > 0»
+					public void onEntityDeleted(«name» sender, «EXPAND entityClass FOR this» o);
+				«ENDIF»
+			}
+			
+			private static int NEXT_LIST_FRAGMENT_ID = 0;
+			private int fragmentId;
+			
+			private «name»Listener listener;
+			private Vector<«EXPAND entityClass FOR this»> items;
+			
+			public «name»() {
+				fragmentId = NEXT_LIST_FRAGMENT_ID++;
+			}
+
+			/**
+			 * Called when this fragment is attached to the parent activity
+			 */
+			@Override
+			public void onAttach(Activity activity) {
+				super.onAttach(activity);
+				
+				// Activity must implement the listener interface
+				try {
+					listener = («name»Listener)activity;
+				}
+				catch (ClassCastException e) {
+					throw new ClassCastException(activity.toString() + " must implement «name»Listener");
+				}
+			}
+
+			/**
+			 * Invoked to set up the fragment after the activity is created and the layout is
+			 * done.
+			 * 
+			 * Also, there's no need to implement onCreateView(), as this class inherits from
+			 * the ListFragment, which contains a list by itself so it's of no use to do that
+			 * again.
+			 */
+			@Override
+			public void onActivityCreated(Bundle savedInstanceState) {
+				super.onActivityCreated(savedInstanceState);
+				«IF contextMenuItems.size > 0»registerForContextMenu(getListView());«ENDIF»
+			}
+			
+			@Override
+			public void onDestroyView() {
+				super.onDestroyView();
+			}
+			
+			«EXPAND listFragmentContextMenuMethods FOR this»
+	
+			public void populate(Vector<«EXPAND entityClass FOR this»> items) {
+				this.items = items;
+				
+				// Prepare items array and list adapter
+				ArrayList<String> listItems = new ArrayList<String>();
+				for (int i = 0; i < items.size(); i++)
+					listItems.add(items.get(i).toString());
+				
+				ArrayAdapter<String> adapter = new ArrayAdapter<String>(getActivity(), R.layout.item_«((android::activity::ListActivity)eContainer).entity.name.toLowerCase()», listItems);
+				
+				// Now, set the list adapter
+				setListAdapter(adapter);
+			}
+			
+			public Vector<«EXPAND entityClass FOR this»> getItems() {
+				return items;
+			}
+			
+			public void removeFromList(«EXPAND entityClass FOR this» o) {
+				items.remove(o);
+				populate(items);
+			}
+			
+			@Override
+			public void onListItemClick(ListView l, View v, int position, long id) {
+				listener.onItemSelected(this, items.get(position));
+			}
+		}
+	«ENDFILE»
+	«FILE "res/layout/item_" + ((android::activity::ListActivity)eContainer).entity.name.toLowerCase() + ".xml"»
+		<?xml version="1.0" encoding="utf-8"?>
+		<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+		    android:layout_width="match_parent"
+		    android:layout_height="match_parent"
+		    android:padding="10dp"
+		    android:gravity="bottom"
+			>
+		</TextView>
+	«ENDFILE»
+«ENDDEFINE»
+«DEFINE fragment FOR activity::fragment::Fragment»«ENDDEFINE»
+
+#############################################################################
+#############################################################################
+## Context menu thingies
+##
+
+«DEFINE listFragmentContextMenuMethods FOR android::activity::fragment::ListFragment»
+	«IF contextMenuItems.size > 0»
+		@Override
+		public void onCreateContextMenu(ContextMenu menu, View view, ContextMenu.ContextMenuInfo menuInfo) {
+			AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo)menuInfo;
+			menu.setHeaderTitle(items.elementAt(info.position).toString());
+			«EXPAND listFragmentContextMenuItemAdd FOREACH contextMenuItems»
+			super.onCreateContextMenu(menu, view, menuInfo);
+		}
+		
+		@Override
+		public boolean onContextItemSelected(MenuItem item) {
+			AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo)item.getMenuInfo();
+			final «EXPAND entityClass FOR this» o = items.elementAt(info.position);
+			
+			// This is required. In cases where we have multiple fragments on a single activity and we click an action in one of the
+			// context menu's generated by a fragment, the selected option in that context menu is sent to all similar fragments on the same activity.
+			// See: http://stackoverflow.com/questions/5297842/how-to-handle-oncontextitemselected-in-a-multi-fragment-activity
+			if (item.getGroupId() == fragmentId) {
+				«EXPAND listFragmentContextMenuItemBehavior FOREACH contextMenuItems»
+			}
+			
+			return super.onContextItemSelected(item);
+		}
+	«ENDIF»
+«ENDDEFINE»
+«DEFINE listFragmentContextMenuItemAdd FOR android::layout::view::menu::ContextMenuItemDelete»menu.add(fragmentId, 0, 0, "Delete");«ENDDEFINE»
+«DEFINE listFragmentContextMenuItemAdd FOR android::layout::view::menu::ContextMenuItemDetails»menu.add(fragmentId, 10, 10, "Details");«ENDDEFINE»
+«DEFINE listFragmentContextMenuItemAdd FOR android::layout::view::menu::ContextMenuItem»«ENDDEFINE»
+«DEFINE listFragmentContextMenuItemBehavior FOR android::layout::view::menu::ContextMenuItemDelete»
+	if (item.getItemId() == 0) { // delete
+		new AlertDialog.Builder(getActivity())
+			.setMessage("Are you sure you want to delete this?")
+			.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					«((android::activity::ListActivity)eContainer.eContainer).entity.name»Storage.getInstance().remove(o);
+					
+					// Repopulate with adjusted items
+					items.remove(o);
+					populate(items);
+					
+					// Inform the containing activity that we updated
+					listener.onEntityDeleted(«((android::activity::fragment::Fragment)eContainer).name».this, o);
+				}
+			})
+			.setNegativeButton("No", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					// do nothing
+				}
+			})
+			.show();
+			
+		return true;
+	}
+«ENDDEFINE»
+«DEFINE listFragmentContextMenuItemBehavior FOR android::layout::view::menu::ContextMenuItemDetails»
+	if (item.getItemId() == 10) { // details
+		new «getPackageName()».fragments.«detailsFragment.name»()
+			.setEntity(o)
+			.show(getFragmentManager(), "tag_«detailsFragment.name»");
+				
+		return true;
+	}
+«ENDDEFINE»
+«DEFINE listFragmentContextMenuItemBehavior FOR android::layout::view::menu::ContextMenuItem»«ENDDEFINE»
+

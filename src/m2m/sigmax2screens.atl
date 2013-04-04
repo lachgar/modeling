@@ -1,0 +1,115 @@
+module sigmax2screens;
+create OUT: Screens from IN: SigmaxApp;
+
+rule app2app {
+	from	app:			SigmaxApp!App
+	to		application:	Screens!Application (
+								name		<- app.name,
+								identifier	<- app.identifier,
+								screens		<- Set{dashboard, app.patterns->collect(p | thisModule.resolveTemp(p, 'screen'))}
+							),
+			dashboard:		Screens!Dashboard (
+								id			<- 'MainDashboard',
+								title		<- app.name,
+								screens		<- app.patterns->collect(p | thisModule.resolveTemp(p, 'screen'))
+							)
+}
+
+rule crud2screens {
+	from	crud:			SigmaxApp!CRUD
+	to		entity:			Screens!Entity (
+								name			<- crud.entityName,
+								fields			<- crud.properties->collect(p | thisModule.resolveTemp(p, 'property')),
+													--->union(Set{thisModule.createRefPropIfNeeded(crud)}),
+								isHierarchical	<- crud.isHierarchical
+							),
+			detailsScreen:	Screens!DetailsScreen (
+								id			<- entity.name + 'Details',
+								title		<- entity.name + 'Details',
+								entity		<- entity,
+								refScreens	<- crud.references->collect(r | thisModule.doDetailsScreen(r))
+							),
+			screen:			Screens!ListScreen (
+								id				<- entity.name + 'List',
+								title			<- crud.name,
+								entity			<- entity,
+								deletable		<- true,
+								detailsScreen	<- detailsScreen
+							)
+}
+
+lazy rule doDetailsScreen {
+	from	ref:			SigmaxApp!CRUDReference
+	to		detailsScreen:	Screens!DetailsScreen (
+								id			<- ref.target.entityName + 'RegistionScreen',
+								title		<- ref.name,
+								entity		<- entity
+							),
+			entity:			Screens!Entity (
+								name		<- ref.target.entityName + 'Koppel',
+								fields		<- Set{thisModule.doCrudRef2ScreensProperty(ref), ref.properties->collect(p | thisModule.resolveTemp(p, 'property'))}
+							)
+}
+
+-- -------------------------------------------------------------------------
+-- Below are all the entity related transformations
+--
+
+abstract rule prop2prop {
+	from	src:		SigmaxApp!Property
+	to		property:	Screens!EntityProperty (
+							name			<- src.name,
+							binding			<- src.binding,
+							isIdentifier	<- if src.isIdentifier = true then true else false endif	-- Force true/false and not OclUndefined
+						)
+}
+rule text2screens extends prop2prop {
+	from	src:		SigmaxApp!Text
+	to		property:	Screens!TextProperty
+}
+rule bool2screens extends prop2prop {
+	from	src:		SigmaxApp!Bool
+	to		property:	Screens!BoolProperty
+}
+rule choose2screens extends prop2prop {
+	from	src:		SigmaxApp!Choose
+	to		property:	Screens!EnumProperty (
+							options <- src.choices
+						)
+}
+rule number2screens extends prop2prop {
+	from	src:		SigmaxApp!Number (
+							src.decimals = false
+						)
+	to		property:	Screens!IntProperty
+}
+rule decimals2screens extends prop2prop {
+	from	src:		SigmaxApp!Number (
+							src.decimals = true
+						)
+	to		property:	Screens!FloatProperty
+}
+
+lazy rule doCrudRef2ScreensProperty {
+	from	ref:		SigmaxApp!CRUDReference
+	to		property:	Screens!RefProperty (
+							name			<- ref.target.entityName,
+							binding			<- ref.target.entityName + 'Ref',
+							isIdentifier	<- true,
+							refEntityName	<- ref.target.entityName,
+							isMultiref		<- ref.isMultiref,
+							creatable		<- false
+						)
+}
+
+rule ref2screens {
+	from	ref:		SigmaxApp!CRUDReference
+	to		property:	Screens!RefProperty (
+							name			<- ref.name,
+							binding			<- ref.target.entityName + 'Koppel',
+							refEntityName	<- ref.target.entityName + 'Koppel',
+							entity			<- thisModule.resolveTemp(ref.source, 'entity'),
+							isMultiref		<- ref.isMultiref,
+							creatable		<- true
+						)
+}

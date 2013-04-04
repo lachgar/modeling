@@ -1,0 +1,75 @@
+<project name="MSc" basedir=".">
+	<description>Automates stuff.</description>
+
+	<!-- Properties -->
+	<property name="base" location="." />
+	<property name="dst" location="../msc.gen.android" />
+
+	<!-- Directories for this build -->
+	<property name="eclipse" location="C:/dev/eclipse/" />
+	<property name="gen" location="${base}/src-gen" />
+	<property name="extras" location="${base}/extras" />
+
+	<!-- Clean-up generated files -->
+	<target name="clean-gen">
+		<echo>Deleting generated (gen) files...</echo>
+		<delete dir="${gen}" />
+		<mkdir dir="${gen}" />
+	</target>
+
+	<!-- Clean-up Android destination  -->
+	<target name="clean-dst">
+		<echo>Fully cleaning Android (dst) directory...</echo>
+		<delete includeemptydirs="true">
+			<fileset dir="${dst}" defaultexcludes="false" includes="**/*" />
+		</delete>
+		<delete file="${dst}/AndroidManifest.xml" />
+	</target>
+
+	<!-- Clean all -->
+	<target name="clean-all">
+		<antcall target="clean-gen" />
+		<antcall target="clean-dst" />
+	</target>
+
+	<!-- Fix line endings for XML files. -->
+	<target name="-fix-line-endings">
+		<echo>Fixing line endings</echo>
+		<exec dir="." executable="java">
+			<arg line="-classpath tools FixLineEndings '${gen}'" />
+		</exec>
+	</target>
+
+	<!-- Automate file-copy -->
+	<target name="copy" depends="-fix-line-endings">
+		<echo>Copying generated files to Android project...</echo>
+		<copy todir="${dst}">
+			<fileset dir="${gen}" />
+		</copy>
+		<echo>Attempting to copy additional extras to Android project...</echo>
+		<antcall target="copy-extras" />
+	</target>
+
+	<!-- Re-copy generated files -->
+	<target name="cc">
+		<echo>Clean copying generated files...</echo>
+		<antcall target="clean-dst" />
+		<antcall target="copy" />
+	</target>
+
+	<!-- Assets check -->
+	<target name="-check-extras">
+		<condition property="exists">
+			<available file="${extras}" type="dir" />
+		</condition>
+	</target>
+
+	<!-- Copy extras -->
+	<target name="copy-extras" depends="-check-extras" if="exists">
+		<echo>Copying extras</echo>
+		<copy todir="${dst}" overwrite="true">
+			<fileset dir="${extras}" />
+		</copy>
+	</target>
+
+</project>

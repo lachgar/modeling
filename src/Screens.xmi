@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<xmi:XMI xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:entity="http://sigmax.nl/smp/screens/1.0/entity" xmlns:screen="http://sigmax.nl/smp/screens/1.0/screen" xmlns:screens="http://sigmax.nl/smp/screens/1.0">
+  <screens:Application name="Zookeeping" identifier="msc.gen.android">
+    <screens xsi:type="screen:ListScreen" id="AnimalList" title="Animals" entity="/1" deletable="true">
+      <detailsScreen id="AnimalDetails" title="AnimalDetails" entity="/1">
+        <refScreens id="FoodRegistionScreen" title="Eats" entity="/4"/>
+        <refScreens id="EnclosureRegistionScreen" title="Lives in" entity="/5"/>
+      </detailsScreen>
+    </screens>
+    <screens xsi:type="screen:ListScreen" id="EnclosureList" title="Animal enclosures" entity="/2" deletable="true">
+      <detailsScreen id="EnclosureDetails" title="EnclosureDetails" entity="/2"/>
+    </screens>
+    <screens xsi:type="screen:ListScreen" id="FoodList" title="Food" entity="/3" deletable="true">
+      <detailsScreen id="FoodDetails" title="FoodDetails" entity="/3"/>
+    </screens>
+    <screens xsi:type="screen:Dashboard" id="MainDashboard" title="Zookeeping" screens="/0/@screens.0 /0/@screens.1 /0/@screens.2"/>
+  </screens:Application>
+  <entity:Entity name="Animal">
+    <fields xsi:type="entity:IntProperty" name="Identification number" binding="AnimalId"/>
+    <fields xsi:type="entity:TextProperty" name="Name" binding="Name" isIdentifier="true"/>
+    <fields xsi:type="entity:EnumProperty" name="Species" binding="Species" isIdentifier="true">
+      <options>Bird</options>
+      <options>Elephant</options>
+      <options>Giraffe</options>
+      <options>Lion</options>
+      <options>Penguin</options>
+    </fields>
+    <fields xsi:type="entity:RefProperty" name="Eats" binding="FoodKoppel" isMultiref="true" creatable="true" refEntityName="FoodKoppel"/>
+    <fields xsi:type="entity:RefProperty" name="Lives in" binding="EnclosureKoppel" isMultiref="false" creatable="true" refEntityName="EnclosureKoppel"/>
+  </entity:Entity>
+  <entity:Entity name="Enclosure">
+    <fields xsi:type="entity:TextProperty" name="Location" binding="Location" isIdentifier="true"/>
+    <fields xsi:type="entity:IntProperty" name="Capacity" binding="Capacity" isIdentifier="true"/>
+    <fields xsi:type="entity:BoolProperty" name="Is in use" binding="InUse"/>
+  </entity:Entity>
+  <entity:Entity name="Food">
+    <fields xsi:type="entity:TextProperty" name="Name" binding="Name" isIdentifier="true"/>
+    <fields xsi:type="entity:EnumProperty" name="Type of food" binding="Type" isIdentifier="true">
+      <options>Chicken</options>
+      <options>Fish</options>
+      <options>Meat</options>
+      <options>Vegetables</options>
+    </fields>
+    <fields xsi:type="entity:EnumProperty" name="Comes in unit" binding="Unit">
+      <options>Kilo</options>
+      <options>Liter</options>
+    </fields>
+    <fields xsi:type="entity:IntProperty" name="Comes per" binding="ComesPer"/>
+  </entity:Entity>
+  <entity:Entity name="FoodKoppel">
+    <fields xsi:type="entity:RefProperty" name="Food" binding="FoodRef" isIdentifier="true" isMultiref="true" creatable="false" refEntityName="Food"/>
+  </entity:Entity>
+  <entity:Entity name="EnclosureKoppel">
+    <fields xsi:type="entity:RefProperty" name="Enclosure" binding="EnclosureRef" isIdentifier="true" isMultiref="false" creatable="false" refEntityName="Enclosure"/>
+  </entity:Entity>
+</xmi:XMI>

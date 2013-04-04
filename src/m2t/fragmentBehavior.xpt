@@ -1,0 +1,208 @@
+«IMPORT android»
+«EXTENSION m2t::util::util»
+
+##############################
+##############################
+## DETAILS FRAGMENT BEHAVIOR 
+
+«DEFINE memberVariables FOR android::activity::behavior::DetailsFragmentBehavior»
+	private «entity.name»Storage.«entity.name» entity;
+	«IF entity.isHierarchical»private «entity.name»Storage.«entity.name» parent = null;«ENDIF»
+	«IF isRefFragment»private nl.smp.util.Refreshable opener;«ENDIF»
+«ENDDEFINE»
+	
+«DEFINE onCreateViewHooks FOR android::activity::behavior::DetailsFragmentBehavior»
+	getDialog().setTitle(entity.toString());
+				
+	/**
+	 * The two button-behaviors below are generated because this fragment implements DetailsFragmentBehavior. This
+	 * behavior assumes there are a save and a cancel button.
+	 */
+	 
+	final Button button_ButtonSave = (Button)view.findViewById(R.id.ButtonSave);
+	button_ButtonSave.setOnClickListener(new View.OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			saveEntity();
+		} 
+	});
+	
+	final Button button_ButtonCancel = (Button)view.findViewById(R.id.ButtonCancel);
+	button_ButtonCancel.setOnClickListener(new View.OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			«((android::activity::fragment::Fragment)eContainer).name».this.dismiss();
+		} 
+	});
+«ENDDEFINE»
+
+«DEFINE onResumeHooks FOR android::activity::behavior::DetailsFragmentBehavior»
+	refresh(null);
+«ENDDEFINE»
+
+«DEFINE methods FOR android::activity::behavior::DetailsFragmentBehavior»
+	public void refresh(Object o) {
+		
+		if (o != null) {
+			// May be called from a fragment that opened this one. Try to cast the object to one
+			// of the types we recognize here.
+			«FOREACH entity.fields.select(f | f.metaType == android::entity::RefField) AS field»
+			«LET (android::entity::RefField)field AS rf»
+				try {
+					«rf.refEntityName»Storage.«rf.refEntityName» e = («rf.refEntityName»Storage.«rf.refEntityName»)o;
+					entity.«IF rf.isMultiref»add«ELSE»set«ENDIF»«rf.refEntityName»(e);
+					System.out.println("«rf.refEntityName»: " + e.toString());
+				}
+				catch (ClassCastException cce) {}
+			«ENDLET»
+			«ENDFOREACH»
+		}
+	
+		«EXPAND setViewContent FOREACH entity.fields»
+	}
+	
+	/**
+	 * Method to set the entity to show details for. Returns itself for easy
+	 * management in the invoking class.
+	 * @generated because this fragment implements DetailsFragmentBehavior
+	 * @param o The entity that is showing
+	 * @return «((android::activity::fragment::Fragment)eContainer).name» This object
+	 */
+	public «((android::activity::fragment::Fragment)eContainer).name» setEntity(«entity.name»Storage.«entity.name» o) {
+		entity = o;
+		return this;
+	}
+	
+	/**
+	 * Grab the values from from fields and save the entity!
+	 * @generated because this fragment implements DetailsFragmentBehavior
+	 */
+	private void saveEntity() {
+		«FOREACH entity.fields AS field»
+			«IF field.metaType == android::entity::TextField»
+				entity.set«field.name»(((EditText)getView().findViewById(R.id.«entity.name»«field.name»)).getText().toString());
+			«ELSEIF field.metaType == android::entity::BoolField»
+				entity.set«field.name»(((CheckBox)getView().findViewById(R.id.«entity.name»«field.name»)).isChecked());
+			«ELSEIF field.metaType == android::entity::EnumField»
+				entity.set«field.name»(((Spinner)getView().findViewById(R.id.«entity.name»«field.name»)).getSelectedItem().toString());
+			«ELSEIF field.metaType == android::entity::IntField»
+				entity.set«field.name»(Integer.parseInt(((EditText)getView().findViewById(R.id.«entity.name»«field.name»)).getText().toString()));
+			«ELSEIF field.metaType == android::entity::FloatField»
+				entity.set«field.name»(Double.parseDouble(((EditText)getView().findViewById(R.id.«entity.name»«field.name»)).getText().toString()));
+			«ENDIF»
+		«ENDFOREACH»
+		«IF entity.isHierarchical»
+			if (entity.isNew()) {
+				if (parent == null) {
+					«entity.name»Storage.getInstance().add(entity);
+				}
+				else {
+					parent.addChild(entity);
+				}
+			}
+		«ELSE»
+			if (entity.isNew()) {
+				«entity.name»Storage.getInstance().add(entity);
+			}
+		«ENDIF»
+		
+		«IF isRefFragment»
+		opener.refresh(entity);
+		«ENDIF»
+		
+		android.widget.Toast.makeText(getActivity(), "«entity.name» Saved", android.widget.Toast.LENGTH_SHORT).show();
+		
+		// Close the fragment
+		«((android::activity::fragment::Fragment)eContainer).name».this.dismiss();
+		
+		// Refresh the activity
+		((«getPackageName()».activities.«((android::activity::Activity)eContainer.eContainer).name»)getActivity()).refresh();
+	}
+	
+	«IF entity.isHierarchical»
+		public «((android::activity::fragment::Fragment)eContainer).name» setParent(«entity.name»Storage.«entity.name» entity) {
+			parent = entity;
+			return this;
+		}
+	«ENDIF»
+	
+	«IF isRefFragment»
+		public «((android::activity::fragment::Fragment)eContainer).name» setOpenerFragment(nl.smp.util.Refreshable opener) {
+			this.opener = opener;
+			return this; 
+		}
+	«ENDIF»
+	
+	«FOREACH entity.fields AS field»«IF field.metaType == android::entity::RefField»«LET (android::entity::RefField)field AS rf»
+	public void add«rf.refEntityName»(«rf.refEntityName»Storage.«rf.refEntityName» e) {
+		entity.«IF rf.isMultiref»add«ELSE»set«ENDIF»«rf.refEntityName»(e);
+	}
+	«ENDLET»«ENDIF»«ENDFOREACH»
+«ENDDEFINE»
+
+«DEFINE setViewContent FOR android::entity::TextField»
+	((EditText)getView().findViewById(R.id.«entity.name»«name»)).setText(entity.get«name»());
+«ENDDEFINE»
+«DEFINE setViewContent FOR android::entity::BoolField»
+	((CheckBox)getView().findViewById(R.id.«entity.name»«name»)).setChecked(entity.get«name»());
+«ENDDEFINE»
+«DEFINE setViewContent FOR android::entity::EnumField»
+	nl.smp.util.SpinnerSelection.selectByValue((Spinner)getView().findViewById(R.id.«entity.name»«name»), entity.get«name»());
+«ENDDEFINE»
+«DEFINE setViewContent FOR android::entity::IntField»
+	((EditText)getView().findViewById(R.id.«entity.name»«name»)).setText(Integer.toString(entity.get«name»()));
+«ENDDEFINE»
+«DEFINE setViewContent FOR android::entity::FloatField»
+	((EditText)getView().findViewById(R.id.«entity.name»«name»)).setText(Double.toString(entity.get«name»()));
+«ENDDEFINE»
+«DEFINE setViewContent FOR android::entity::RefField»«LET "spinner_" + entity.name + name AS spinName»
+	Spinner «spinName» = (Spinner)getView().findViewById(R.id.«entity.name»«name»);
+	ArrayAdapter<String> adapter_«spinName» = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_spinner_item);
+	
+	«IF isMultiref»
+	for («refEntityName»Storage.«refEntityName» ref : entity.get«refEntityName»()) {
+		adapter_«spinName».add(ref.toString());
+	}
+	«ELSE»
+	«refEntityName»Storage.«refEntityName» ref = entity.get«refEntityName»();
+	if (ref != null) {
+		adapter_«spinName».add(ref.toString());
+	}	
+	«ENDIF»
+	
+	«IF creatable»
+	adapter_«spinName».add("");
+	adapter_«spinName».add("New ...");
+	«ELSE»
+	java.util.List<«refEntityName»Storage.«refEntityName»> list_«spinName» = «refEntityName»Storage.getInstance().getStorage();
+	for («refEntityName»Storage.«refEntityName» e : list_«spinName») {
+		adapter_«spinName».add(e.toString());
+	}
+	«ENDIF»
+	«spinName».setAdapter(adapter_«spinName»);
+	«IF creatable»
+	«spinName».setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+			public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+				String selected = (String)parent.getItemAtPosition(pos);
+				if (selected == "New ...") {
+					new «refEntityName»DetailsFragment()
+					.setOpenerFragment(«((android::entity::Entity)eContainer).name»DetailsFragment.this)
+					.setEntity(new «refEntityName»Storage.«refEntityName»())
+					.show(«((android::entity::Entity)eContainer).name»DetailsFragment.this.getFragmentManager(), "tag_«refEntityName»");
+				}
+			}
+			public void onNothingSelected(AdapterView<?> parent) {
+			}
+	});
+	«ENDIF»
+«ENDLET»«ENDDEFINE»
+«DEFINE setViewContent FOR android::entity::EntityField»
+	«ERROR "ERROR: No 'setViewContent' template definition for type " + metaType»
+«ENDDEFINE»
+
+// Empty defaults
+«DEFINE memberVariables FOR android::activity::behavior::FragmentBehavior»«ENDDEFINE»
+«DEFINE onCreateViewHooks FOR android::activity::behavior::FragmentBehavior»«ENDDEFINE»
+«DEFINE onResumeHooks FOR android::activity::behavior::FragmentBehavior»«ENDDEFINE»
+«DEFINE methods FOR android::activity::behavior::FragmentBehavior»«ENDDEFINE»
+«DEFINE specifics FOR android::activity::behavior::FragmentBehavior»«ENDDEFINE»

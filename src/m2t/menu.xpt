@@ -1,0 +1,49 @@
+«IMPORT android»
+«EXTENSION m2t::util::util»
+
+«DEFINE menu FOR android::layout::view::menu::Menu»
+	«FILE "res/menu/" + name.toLowerCase() + ".xml"»
+		<?xml version="1.0" encoding="utf-8"?>
+		<menu xmlns:android="http://schemas.android.com/apk/res/android">
+			«FOREACH items AS menuItem»
+				<item
+					android:id="@+id/«menuItem.id»"
+					android:title="«menuItem.title»"
+					android:showAsAction="ifRoom"
+					/>
+			«ENDFOREACH»
+		</menu>
+	«ENDFILE»
+«ENDDEFINE»
+
+«DEFINE methods FOR android::activity::Activity»
+	«IF menu != null»
+		@Override
+		public boolean onCreateOptionsMenu(Menu menu) {
+		    MenuInflater inflater = getMenuInflater();
+	    	inflater.inflate(R.menu.«menu.name.toLowerCase()», menu);
+	    	return true;
+		}
+		
+		@Override
+		public boolean onOptionsItemSelected(MenuItem item) {
+			switch (item.getItemId()) {
+				«FOREACH menu.items AS menuItem»
+					case R.id.«menuItem.id»:
+						«EXPAND menuItemBehavior FOR menuItem»
+						return true;
+				«ENDFOREACH»
+				default:
+					return super.onOptionsItemSelected(item);
+			}
+		}		
+	«ENDIF»
+«ENDDEFINE»
+
+«DEFINE menuItemBehavior FOR android::layout::view::menu::MenuItemOpenCreateEntityFragment»
+	new «getPackageName()».fragments.«fragment.name»()
+		.setEntity(new «entity.name»Storage.«entity.name»())
+		«IF entity.isHierarchical».setParent(currentEntity)«ENDIF»
+		.show(getFragmentManager(), "tag_«fragment.name»");
+«ENDDEFINE»
+«DEFINE menuItemBehavior FOR android::layout::view::menu::MenuItem»«ERROR "ERROR: No menu item behavior for " + metaType»«ENDDEFINE»

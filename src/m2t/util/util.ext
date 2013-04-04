@@ -1,0 +1,17 @@
+String classHeader(String className):
+  JAVA m2t.util.TemplateUtils.classHeader(java.lang.String);
+  
+String setAppIdentifier(String identifier):
+  JAVA m2t.util.TemplateUtils.setAppIdentifier(java.lang.String);
+  
+String getAppIdentifier():
+  JAVA m2t.util.TemplateUtils.getAppIdentifier();
+
+String setPackageName(String name):
+  JAVA m2t.util.TemplateUtils.setPackageName(java.lang.String);
+  
+String getPackageName():
+  JAVA m2t.util.TemplateUtils.getPackageName();
+  
+String getPackageDir():
+  JAVA m2t.util.TemplateUtils.getPackageDir();

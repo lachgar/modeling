@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="ASCII"?>
+<sigmaxapp:App
+    xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:pattern="http://sigmax.nl/smp/sigmaxapp/1.0/pattern"
+    xmlns:property="http://sigmax.nl/smp/sigmaxapp/1.0/property"
+    xmlns:sigmaxapp="http://sigmax.nl/smp/sigmaxapp/1.0"
+    xsi:schemaLocation="http://sigmax.nl/smp/sigmaxapp/1.0/pattern metamodel/SigmaxApp.ecore#//pattern http://sigmax.nl/smp/sigmaxapp/1.0/property metamodel/SigmaxApp.ecore#//property http://sigmax.nl/smp/sigmaxapp/1.0 metamodel/SigmaxApp.ecore"
+    name="Zookeeping"
+    identifier="msc.gen.android">
+  <patterns
+      xsi:type="pattern:CRUD"
+      entityName="Animal"
+      name="Animals">
+    <properties
+        xsi:type="property:Number"
+        name="Identification number"
+        binding="AnimalId"/>
+    <properties
+        xsi:type="property:Text"
+        name="Name"
+        binding="Name"
+        isIdentifier="true"/>
+    <properties
+        xsi:type="property:Choose"
+        name="Species"
+        binding="Species"
+        isIdentifier="true">
+      <choices>Bird</choices>
+      <choices>Elephant</choices>
+      <choices>Giraffe</choices>
+      <choices>Lion</choices>
+      <choices>Penguin</choices>
+    </properties>
+    <references
+        name="Eats"
+        isMultiref="true"
+        target="//@patterns.2"/>
+    <references
+        name="Lives in"
+        target="//@patterns.1"/>
+  </patterns>
+  <patterns
+      xsi:type="pattern:CRUD"
+      entityName="Enclosure"
+      name="Animal enclosures">
+    <properties
+        xsi:type="property:Text"
+        name="Location"
+        binding="Location"
+        isIdentifier="true"/>
+    <properties
+        xsi:type="property:Number"
+        name="Capacity"
+        binding="Capacity"
+        isIdentifier="true"/>
+    <properties
+        xsi:type="property:Bool"
+        name="Is in use"
+        binding="InUse"/>
+  </patterns>
+  <patterns
+      xsi:type="pattern:CRUD"
+      entityName="Food"
+      name="Food">
+    <properties
+        xsi:type="property:Text"
+        name="Name"
+        binding="Name"
+        isIdentifier="true"/>
+    <properties
+        xsi:type="property:Choose"
+        name="Type of food"
+        binding="Type"
+        isIdentifier="true">
+      <choices>Chicken</choices>
+      <choices>Fish</choices>
+      <choices>Meat</choices>
+      <choices>Vegetables</choices>
+    </properties>
+    <properties
+        xsi:type="property:Choose"
+        name="Comes in unit"
+        binding="Unit">
+      <choices>Kilo</choices>
+      <choices>Liter</choices>
+    </properties>
+    <properties
+        xsi:type="property:Number"
+        name="Comes per"
+        binding="ComesPer"/>
+  </patterns>
+</sigmaxapp:App>
