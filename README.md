@@ -25,12 +25,12 @@ These are very, very, very basic installation instructions. It does not tell you
 		2. Check "Developer Tools"
 		3. Next -> Next -> Accept -> Finish
 5. Install the Android SDK from http://developer.android.com/sdk/index.html
-	1. After installation, create an empty Android application in Eclipse
+	1. After installation, create an empty Android application in Eclipse on the same level where you create the modeling project, and call it "msc.gen.android". If you don't use this name, modify build.xml.
 6. Install Ant from http://ant.apache.org/ according to instructions
 7. File -> Import... and browse to your modeling project (don't copy to workspace)
 8. Select ATL view in top right of Eclipse
-9. Generate android code nl.sigmax.modeling
-	1. Adjust SigmaxApp.xmi to satisfy requirements
+9. Generation!
+	1. Adjust SigmaxApp.xmi to satisfy requirements (it's a zoo, currently)
 	2. Run model-to-model transformation sigmaxapp2screens.atl
 	3. Run model-to-model transformation screens2android.atl
 	4. Run model-to-text transformation android2text.mwe (.mwe, not .xpt) Found in 'workflow'
