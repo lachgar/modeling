@@ -89,6 +89,8 @@
 				entity.set«field.name»(Integer.parseInt(((EditText)getView().findViewById(R.id.«entity.name»«field.name»)).getText().toString()));
 			«ELSEIF field.metaType == android::entity::FloatField»
 				entity.set«field.name»(Double.parseDouble(((EditText)getView().findViewById(R.id.«entity.name»«field.name»)).getText().toString()));
+			«ELSEIF field.metaType == android::entity::RefField»
+				entity.set«((android::entity::RefField)field).refEntityName»(«((android::entity::RefField)field).refEntityName»Storage.getInstance().get«((android::entity::RefField)field).refEntityName»ByString(((Spinner)getView().findViewById(R.id.«entity.name»«field.name»)).getSelectedItem().toString()));
 			«ENDIF»
 		«ENDFOREACH»
 		«IF entity.isHierarchical»

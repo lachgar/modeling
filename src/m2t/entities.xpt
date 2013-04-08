@@ -171,6 +171,22 @@
 				}
 				return null;
 			}
+	
+			/**
+			 * Find a «name» by its String. Yeah, String. «IF isHierarchical»Performs a recursive search amongst children.«ENDIF»
+			 * @return «name» with the corresponding String, or null if not found
+			 */
+			public «name» get«name»ByString(String s) {
+				Vector<«name»> search = new Vector<«name»>(getStorage());
+				for (int i = 0; i < search.size(); i++) {
+					«name» o = search.get(i);
+					if (o.toString().equalsIgnoreCase(s))
+						return o;
+					
+					«IF isHierarchical»search.addAll(o.getChildren());«ENDIF»
+				}
+				return null;
+			}
 		}
 	«ENDFILE»
 	«FILE "src/" + getPackageDir() + "/storage/" + name + "Storage.java"»
