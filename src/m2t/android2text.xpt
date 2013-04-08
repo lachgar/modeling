@@ -32,6 +32,7 @@
 					android:name=".activities.«activity.name»"
 					android:label="«activity.title»"
 					android:screenOrientation="nosensor"
+					android:theme="@android:style/Theme.Holo.Light"
 					>
 					«IF activity.isStartActivity»
 						<intent-filter>
