@@ -97,7 +97,7 @@ lazy rule doCrudRef2ScreensProperty {
 							binding			<- ref.target.entityName + 'Ref',
 							isIdentifier	<- true,
 							refEntityName	<- ref.target.entityName,
-							isMultiref		<- ref.isMultiref,
+							isMultiref		<- false,
 							creatable		<- false
 						)
 }
